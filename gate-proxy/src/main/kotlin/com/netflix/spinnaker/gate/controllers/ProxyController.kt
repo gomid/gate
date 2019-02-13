@@ -44,7 +44,7 @@ class ProxyController(val objectMapper: ObjectMapper,
 
   val proxyInvocationsId = registry.createId("proxy.invocations")
 
-  @RequestMapping(value = ["/{proxy}/**"], method = [GET, POST])
+  @RequestMapping(value = ["/{proxy}/**"], method = [GET, POST, PUT, PATCH, DELETE])
   fun any(@PathVariable(value = "proxy") proxy: String,
           @RequestParam requestParams: Map<String, String>,
           httpServletRequest: HttpServletRequest): ResponseEntity<Any> {
@@ -70,12 +70,12 @@ class ProxyController(val objectMapper: ObjectMapper,
     val proxiedUrl = proxiedUrlBuilder.build()
 
     var statusCode = 0
-    var contentType = "text/plain"
+    var contentType: String? = "text/plain"
     var responseBody: String
 
     try {
       val method = httpServletRequest.method
-      val body = if (HttpMethod.permitsRequestBody(method)) {
+      val body = if (HttpMethod.requiresRequestBody(method)) {
         RequestBody.create(
           com.squareup.okhttp.MediaType.parse(httpServletRequest.contentType),
           httpServletRequest.reader.lines().collect(Collectors.joining(System.lineSeparator()))
@@ -114,7 +114,9 @@ class ProxyController(val objectMapper: ObjectMapper,
     }
 
     val httpHeaders = HttpHeaders()
-    httpHeaders.contentType = MediaType.valueOf(contentType)
+    if (contentType != null) {
+      httpHeaders.contentType = MediaType.valueOf(contentType)
+    }
     httpHeaders.put("X-Proxy-Status-Code", mutableListOf(statusCode.toString()))
     httpHeaders.put("X-Proxy-Url", mutableListOf(proxiedUrl.toString()))
 
